@@ -36,7 +36,6 @@ jobs:
         with:
           repository: pytorch/pytorch
           path: pytorch
-          # TODO: correct pin
       - name: Checkout PyTorch/XLA Repo
         uses: actions/checkout@v4
         with:
