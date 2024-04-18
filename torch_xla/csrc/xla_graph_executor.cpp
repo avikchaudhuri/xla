@@ -1,6 +1,7 @@
 #include "torch_xla/csrc/xla_graph_executor.h"
 
 #include <Python.h>
+#include <signal.h>
 #include <torch/csrc/autograd/variable.h>
 #include <torch/csrc/lazy/core/hash.h>
 #include <torch/csrc/lazy/core/helpers.h>
@@ -103,6 +104,7 @@ XLAGraphExecutor::ComputationCache* CreateComputationCache() {
         kMaxCacheSize, persistentCacheDir, readonlyPersistentCache,
         serialize_fn, deserialize_fn);
   }
+  std::cout << "PIZ: return memory cache" << std::endl;
   return new XLAGraphExecutor::MemoryCache(kMaxCacheSize);
 }
 
@@ -1274,6 +1276,7 @@ XLAGraphExecutor::CompilationResult XLAGraphExecutor::Compile(
     std::vector<XLATensorPtr>& tensors, absl::Span<const std::string> devices,
     const SyncTensorCollection& coll, PostOrderData* po_data,
     const std::vector<torch::lazy::Value>& ir_values) {
+  std::cout << "compile stage" << std::endl;
   tsl::profiler::TraceMe activity(
       [&] {
         return tsl::profiler::TraceMeEncode(
@@ -1290,6 +1293,7 @@ XLAGraphExecutor::CompilationResult XLAGraphExecutor::Compile(
                                po_data->post_order,
                                std::move(po_data->emission_map));
   for (auto ir_value : ir_values) {
+    std::cout << "node: "<< torch::lazy::Output(ir_value.node.get(), ir_value.index).ToString() << std::endl;
     xla::XlaOp root = lowering_ctx.GetOutputOp(
         torch::lazy::Output(ir_value.node.get(), ir_value.index));
     lowering_ctx.AddResult(root);
@@ -1338,9 +1342,9 @@ XLAGraphExecutor::CompilationResult XLAGraphExecutor::Compile(
     }
   }
 
-  xla::XlaComputation computation = ConsumeValue(lowering_ctx.BuildXla());
+  xla::XlaComputation computation = ConsumeValue(lowering_ctx.BuildXla()); // piz: the computation has issue. Shape mismatch
   xla::ProgramShape program_shape = ConsumeValue(computation.GetProgramShape());
-
+  std::cout << "piz: program shzpe: " << program_shape.ToString() << std::endl;
   // TODO(yeounoh) enable wrapping with auto-sharding.
   bool should_wrap_parameter =
       (program_shape.parameters_size() >= parameter_wrapping_threadshold) &&
@@ -1357,10 +1361,17 @@ XLAGraphExecutor::CompilationResult XLAGraphExecutor::Compile(
       program_shape.result(), static_cast<XlaDeviceType>(coll.device.type()));
 
   std::vector<runtime::ComputationClient::CompileInstance> instances;
+  std::cout << "qqqqq: " << coll.device.toString() << std::endl;
+  // for (auto de : runtime::GetComputationClient()->GetCompilationDevices(
+  //          coll.device.toString(), devices)) {
+  for (auto de : runtime::GetComputationClient()->GetCompilationDevices(
+           "aot:0", devices)) {
+    std::cout << "ddddd: " << de << std::endl;
+  }
+
   instances.push_back({std::move(computation), coll.device.toString(),
-                       runtime::GetComputationClient()->GetCompilationDevices(
-                           coll.device.toString(), devices),
-                       &shape, should_wrap_parameter, is_sharded});
+       runtime::GetComputationClient()->GetCompilationDevices("aot:0", devices),
+       &shape, should_wrap_parameter, is_sharded});
 
   if (use_autosharding) {
     TF_VLOG(5) << "use_auto_spmd_partitioning is set.";
@@ -1392,7 +1403,8 @@ XLAGraphExecutor::CompilationResult XLAGraphExecutor::Compile(
              << coll.device << " ...";
   std::vector<std::shared_ptr<runtime::ComputationClient::Computation>>
       computations =
-          runtime::GetComputationClient()->Compile(std::move(instances));
+          runtime::GetComputationClient()->Compile(std::move(instances)); // PIZ: place to generate compile result
+
   TF_VLOG(3) << "Compiling IR graph hash "
              << torch::lazy::HashToString(coll.hash) << " on device "
              << coll.device << " done!";
@@ -1499,7 +1511,9 @@ XLAGraphExecutor::SyncTensorsGraphInternal(
   TF_VLOG(5) << "TensorsGraphSize=" << compile_result.emitted_nodes;
   auto cached_computation = std::make_shared<CachedComputation>(
       std::move(compile_result.computation), compile_result.is_sharded);
-  GetComputationCache()->Add(coll.hash, cached_computation);
+  std::cout << "before add" << std::endl;
+  GetComputationCache()->Add(coll.hash, cached_computation);  // <- PIZ: error
+  std::cout << "after add" << std::endl;
 
   if (warm_up_cache_only) {
     return nullptr;

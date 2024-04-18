@@ -25,10 +25,12 @@
 #include "xla/client/xla_builder.h"
 #include "xla/client/xla_computation.h"
 #include "xla/layout_util.h"
+#include "xla/pjrt/pjrt_c_api_client.h"
 #include "xla/literal.h"
 #include "xla/pjrt/pjrt_client.h"
 #include "xla/pjrt/pjrt_executable.h"
 #include "xla/protobuf_util.h"
+#include "xla/pjrt/pjrt_compiler.h"
 #include "xla/shape.h"
 
 using xla::internal::XlaBuilderFriend;
@@ -64,38 +66,40 @@ xla::Shape host_output_shape(xla::PjRtBuffer* buffer) {
 
 torch::lazy::hash_t hash_comp_env(
     xla::PjRtClient* client, std::vector<xla::PjRtDevice*>& ordered_devices) {
-  torch::lazy::hash_t hash = hash::HashXlaEnvVars();
-  auto topology_desc = client->GetTopologyDescription();
-  if (topology_desc.ok()) {
-    // Some backends support a topology description which provides a better
-    // view of the specific compilation environment.
-    auto serialized = topology_desc.value()->Serialize();
-    if (serialized.ok()) {
-      return torch::lazy::HashCombine(
-          hash,
-          torch::lazy::DataHash(serialized->data(), serialized->length()));
-    }
-    // If serialization fails, fallthrough to the manual approach.
-  }
-  std::string platform_name(client->platform_name());
-  std::string platform_version(client->platform_version());
-  hash = torch::lazy::HashCombine(
-      hash, torch::lazy::StringHash(platform_name.c_str()));
-  // platform_version incorporates libtpu version and hardware type.
-  hash = torch::lazy::HashCombine(
-      hash, torch::lazy::StringHash(platform_version.c_str()));
-  // Include global devices in the hash, ensuring order is consistent.
-  for (auto& device : ordered_devices) {
-    std::string device_str(device->ToString());
-    hash = torch::lazy::HashCombine(
-        hash, torch::lazy::StringHash(device_str.c_str()));
-  }
-  return hash;
+  // torch::lazy::hash_t hash = hash::HashXlaEnvVars();
+  return 0;
+  // auto topology_desc = client->GetTopologyDescription();
+  // if (topology_desc.ok()) {
+  //   // Some backends support a topology description which provides a better
+  //   // view of the specific compilation environment.
+  //   auto serialized = topology_desc.value()->Serialize();
+  //   if (serialized.ok()) {
+  //     return torch::lazy::HashCombine(
+  //         hash,
+  //         torch::lazy::DataHash(serialized->data(), serialized->length()));
+  //   }
+  //   // If serialization fails, fallthrough to the manual approach.
+  // }
+  // std::string platform_name(client->platform_name());
+  // std::string platform_version(client->platform_version());
+  // hash = torch::lazy::HashCombine(
+  //     hash, torch::lazy::StringHash(platform_name.c_str()));
+  // // platform_version incorporates libtpu version and hardware type.
+  // hash = torch::lazy::HashCombine(
+  //     hash, torch::lazy::StringHash(platform_version.c_str()));
+  // // Include global devices in the hash, ensuring order is consistent.
+  // for (auto& device : ordered_devices) {
+  //   std::string device_str(device->ToString());
+  //   hash = torch::lazy::HashCombine(
+  //       hash, torch::lazy::StringHash(device_str.c_str()));
+  // }
+  // return hash;
 }
 
 }  // namespace
 
 std::string PjRtComputationClient::PjRtDeviceToString(
+  // piz: another solution is to let the AOT device return `aot` here instead of `tpu`.
     xla::PjRtDevice* const device) const {
   std::string platform =
       absl::AsciiStrToUpper(device->client()->platform_name());
@@ -130,6 +134,9 @@ PjRtComputationClient::PjRtComputationClient() {
   for (auto* device : ordered_devices) {
     global_ordinals_[device->id()] = global_ordinals_.size();
     std::string device_str = PjRtDeviceToString(device);
+    // piz: The device_str is based on the PjRtClient. For AOT, the we use PjRtCompileOnlyClient.
+    // Since the client is using the TPU topology, the device_str will be TPU:x instead of AOT:x.
+    std::cout << "device_str1: " << device_str << std::endl; 
     string_to_device_.emplace(device_str, device);
   }
   comp_env_hash_ = hash_comp_env(client_.get(), ordered_devices);
@@ -252,6 +259,7 @@ std::vector<ComputationClient::DataPtr> PjRtComputationClient::TransferToDevice(
   datas.reserve(tensors.size());
   int64_t total_size = 0;
   for (auto& tensor : tensors) {
+    std::cout << "tensor->device: " << tensor->device() << std::endl;
     xla::PjRtDevice* pjrt_device = StringToPjRtDevice(tensor->device());
 
     total_size += xla::ShapeUtil::ByteSizeOf(tensor->shape());
@@ -271,6 +279,7 @@ std::vector<ComputationClient::DataPtr> PjRtComputationClient::TransferToDevice(
     datas.push_back(data);
   }
   OutboundDataMetric()->AddSample(total_size);
+  std::cout << "data handles counter add value. " << std::endl; 
   CreateDataHandlesCounter()->AddValue(datas.size());
 
   return datas;
@@ -489,7 +498,8 @@ std::vector<xla::Literal> PjRtComputationClient::TransferFromDevice(
   return literals;
 }
 
-std::vector<ComputationClient::ComputationPtr> PjRtComputationClient::Compile(
+std::vector<ComputationClient::ComputationPtr>
+PjRtComputationClient::Compile(  // <- PIZ: this is the entry point
     std::vector<ComputationClient::CompileInstance> instances) {
   metrics::TimedSection timed(CompileMetric());
   tsl::profiler::TraceMe activity("PjRtComputationClient::Compile",
@@ -557,6 +567,7 @@ std::vector<ComputationClient::ComputationPtr> PjRtComputationClient::Compile(
           instance.parameter_is_tupled_arguments;
 
       xla::DeviceAssignment device_assignment(client_->device_count(), 1);
+      std::cout << "device_count devices_args: " << client_->device_count()  << std::endl;
       // DeviceAssignment values must be the PjRtDevice ID, so we need to
       // unwind the global ordinal mapping.
       for (const auto& [device_id, global_ordinal] : global_ordinals_) {
@@ -566,7 +577,7 @@ std::vector<ComputationClient::ComputationPtr> PjRtComputationClient::Compile(
           device_assignment);
     }
 
-    std::unique_ptr<xla::PjRtLoadedExecutable> executable;
+    std::unique_ptr<xla::PjRtExecutable> executable;
     if (runtime::sys_util::GetEnvBool("XLA_STABLEHLO_COMPILE", false)) {
       // Convert HLO to StableHLO for PjRt client compilation.
       mlir::MLIRContext context;
@@ -576,17 +587,31 @@ std::vector<ComputationClient::ComputationPtr> PjRtComputationClient::Compile(
       executable = client_->Compile(mlir_module, compile_options).value();
       StableHloCompileCounter()->AddValue(1);
     } else {
-      executable =
-          client_->Compile(instance.computation, compile_options).value();
+      // executable =
+      //     client_->Compile(instance.computation, compile_options).value();
+      std::string topology_name = "v4:2x2x1";
+      absl::flat_hash_map<std::string, xla::PjRtValueType> create_options = {};
+      absl::StatusOr<std::unique_ptr<xla::PjRtTopologyDescription>> topo = xla::GetCApiTopology("tpu", topology_name, create_options);
+      XLA_CHECK_OK(topo.status()); 
+      // std::shared_ptr<xla::PjRtTopologyDescription> shared_topo = std::move(topo.value());
+      executable = ConsumeValue(PjRtCompile(compile_options, instance.computation, *topo.value().get()));
+      // ConsumeValue(client_->CompileUnloaded(
+      //     instance.computation,
+      //     compile_options));  // PIZ: don't know how the client_->Compile is implemented
     }
 
     const auto& hlo_modules = ConsumeValue(executable->GetHloModules());
     xla::HloComputation* hlo_computation = hlo_modules[0]->entry_computation();
-    std::shared_ptr<PjRtComputation> pjrt_computation =
-        std::make_shared<PjRtComputation>(
+    // std::shared_ptr<PjRtComputation> pjrt_computation =
+    //     std::make_shared<PjRtComputation>(
+    //         std::move(xla::XlaComputation(hlo_modules[0]->ToProto())),
+    //         instance.devices, std::move(executable));
+
+    std::cout << "instance.devices: " << instance.devices[0] << std::endl;
+    std::shared_ptr<PjRtUnloadedComputation> pjrt_computation =
+        std::make_shared<PjRtUnloadedComputation>(
             std::move(xla::XlaComputation(hlo_modules[0]->ToProto())),
             instance.devices, std::move(executable));
-
     computations.push_back(pjrt_computation);
 
     CreateCompileHandlesCounter()->AddValue(1);
@@ -597,8 +622,8 @@ std::vector<ComputationClient::ComputationPtr> PjRtComputationClient::Compile(
 
 std::string PjRtComputationClient::SerializeComputation(
     const ComputationPtr computation) {
-  const PjRtComputation& pjrt_computation =
-      dynamic_cast<const PjRtComputation&>(*computation);
+  const PjRtUnloadedComputation& pjrt_computation =
+      dynamic_cast<const PjRtUnloadedComputation&>(*computation); // piz: fail for cast from 
 
   return ConsumeValue(pjrt_computation.executable->SerializeExecutable());
 }
@@ -650,62 +675,66 @@ PjRtComputationClient::ExecuteComputation(
   tsl::profiler::TraceMe activity("PjRtComputationClient::ExecuteComputation",
                                   tsl::profiler::TraceMeLevel::kInfo);
   TF_VLOG(1) << "Executing PjRt computation on " << device;
-  const PjRtComputation& pjrt_computation =
+  try{
+    const PjRtComputation& pjrt_computation =
       dynamic_cast<const PjRtComputation&>(computation);
 
-  xla::PjRtDevice* pjrt_device = StringToPjRtDevice(device);
-  XLA_CHECK(pjrt_device->IsAddressable()) << pjrt_device->DebugString();
+    xla::PjRtDevice* pjrt_device = StringToPjRtDevice(device);
+    XLA_CHECK(pjrt_device->IsAddressable()) << pjrt_device->DebugString();
 
-  std::vector<xla::PjRtBuffer*> buffers;
-  buffers.reserve(arguments.size());
-  for (auto& argument : arguments) {
-    const PjRtData* pjrt_data = dynamic_cast<PjRtData*>(argument.get());
+    std::vector<xla::PjRtBuffer*> buffers;
+    buffers.reserve(arguments.size());
+    for (auto& argument : arguments) {
+      const PjRtData* pjrt_data = dynamic_cast<PjRtData*>(argument.get());
+      XLA_CHECK(pjrt_device == pjrt_data->buffer->device())
+          << pjrt_device->DebugString() << " vs "
+          << pjrt_data->buffer->device()->DebugString();
+      buffers.push_back(pjrt_data->buffer.get());
+    }
 
-    XLA_CHECK(pjrt_device == pjrt_data->buffer->device())
-        << pjrt_device->DebugString() << " vs "
-        << pjrt_data->buffer->device()->DebugString();
-    buffers.push_back(pjrt_data->buffer.get());
+    xla::ExecuteOptions execute_options;
+    execute_options.untuple_result = options.explode_tuple;
+    execute_options.strict_shape_checking = false;
+
+    // Required as of cl/518733871
+    execute_options.use_major_to_minor_data_layout_for_callbacks = true;
+
+    TF_VLOG(5) << "ExecuteComputation acquiring PJRT device lock for " << device;
+    auto op_tracker = operation_manager_.StartOperation(device);
+    TF_VLOG(5) << "ExecuteComputation acquiring PJRT device lock for " << device
+              << " Done";
+
+    std::optional<xla::PjRtFuture<xla::Status>> returned_future;
+    std::vector<std::unique_ptr<xla::PjRtBuffer>> results =
+        pjrt_computation.executable
+            ->ExecuteSharded(buffers, pjrt_device, execute_options,
+                            returned_future)
+            .value();
+
+    returned_future->OnReady(std::move(
+        [timed, op_tracker = std::move(op_tracker)](xla::Status unused) mutable {
+          timed.reset();
+          TF_VLOG(3) << "ExecuteComputation returned_future->OnReady finished";
+        }));
+
+    std::vector<DataPtr> datas;
+    datas.reserve(results.size());
+    for (auto& result : results) {
+      std::unique_ptr<xla::PjRtBuffer> buffer = std::move(result);
+
+      std::shared_ptr<PjRtData> data =
+          std::make_shared<PjRtData>(device, std::move(buffer));
+
+      datas.push_back(data);
+    }
+    CreateDataHandlesCounter()->AddValue(datas.size());
+
+    TF_VLOG(1) << "Returning " << datas.size() << " results";
+    return datas;
   }
-
-  xla::ExecuteOptions execute_options;
-  execute_options.untuple_result = options.explode_tuple;
-  execute_options.strict_shape_checking = false;
-
-  // Required as of cl/518733871
-  execute_options.use_major_to_minor_data_layout_for_callbacks = true;
-
-  TF_VLOG(5) << "ExecuteComputation acquiring PJRT device lock for " << device;
-  auto op_tracker = operation_manager_.StartOperation(device);
-  TF_VLOG(5) << "ExecuteComputation acquiring PJRT device lock for " << device
-             << " Done";
-
-  std::optional<xla::PjRtFuture<xla::Status>> returned_future;
-  std::vector<std::unique_ptr<xla::PjRtBuffer>> results =
-      pjrt_computation.executable
-          ->ExecuteSharded(buffers, pjrt_device, execute_options,
-                           returned_future)
-          .value();
-
-  returned_future->OnReady(std::move(
-      [timed, op_tracker = std::move(op_tracker)](xla::Status unused) mutable {
-        timed.reset();
-        TF_VLOG(3) << "ExecuteComputation returned_future->OnReady finished";
-      }));
-
-  std::vector<DataPtr> datas;
-  datas.reserve(results.size());
-  for (auto& result : results) {
-    std::unique_ptr<xla::PjRtBuffer> buffer = std::move(result);
-
-    std::shared_ptr<PjRtData> data =
-        std::make_shared<PjRtData>(device, std::move(buffer));
-
-    datas.push_back(data);
+  catch (const std::bad_cast& e) {
+   return std::vector<ComputationClient::DataPtr>();
   }
-  CreateDataHandlesCounter()->AddValue(datas.size());
-
-  TF_VLOG(1) << "Returning " << datas.size() << " results";
-  return datas;
 }
 
 std::vector<ComputationClient::DataPtr>
@@ -896,7 +925,11 @@ PjRtComputationClient::GetReplicationDevices() {
 }
 
 xla::PjRtDevice* PjRtComputationClient::StringToPjRtDevice(
-    const std::string& device) {
+    const std::string& raw_device) {
+  std::string device = raw_device;
+  if (raw_device=="AOT:0") {
+    device = "TPU:0";
+  }
   XLA_CHECK(string_to_device_.find(device) != string_to_device_.end())
       << "Unknown device " << device;
   xla::PjRtDevice* pjrt_device = string_to_device_[device];

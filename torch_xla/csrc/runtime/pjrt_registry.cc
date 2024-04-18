@@ -14,7 +14,380 @@
 #include "xla/pjrt/gpu/se_gpu_pjrt_client.h"
 #include "xla/pjrt/pjrt_api.h"
 #include "xla/pjrt/pjrt_c_api_client.h"
+#include "xla/pjrt/pjrt_client.h"
 #include "xla/pjrt/tfrt_cpu_pjrt_client.h"
+
+// piz extra include for pjrtcient
+#include "xla/service/hlo_cost_analysis.h"
+namespace xla {
+namespace {
+
+
+    // PjRtCompileOnlyBuffer::PjRtCompileOnlyBuffer(const Shape& shape,
+    //   PjRtCompileOnlyDevice* device, PjRtCompileOnlyClient* client) {
+    //   shape_ = shape;
+    //   device_ = device;
+    //   client_ = client;
+    // }
+
+    const Shape& PjRtCompileOnlyBuffer::on_device_shape() const {
+      return shape_;
+    }
+
+    PjRtMemorySpace* PjRtCompileOnlyBuffer::memory_space() const {
+      return nullptr;
+
+    }
+
+    PjRtDevice* PjRtCompileOnlyBuffer::device() const {
+      // return device_.get();
+      return nullptr;
+
+    }
+
+    PjRtClient* PjRtCompileOnlyBuffer::client() const {
+      // return client_.get();
+      return nullptr;
+
+    }
+
+    StatusOr<std::unique_ptr<xla::PjRtBuffer::ExternalReference>> PjRtCompileOnlyBuffer::AcquireExternalReference() {
+      return Unimplemented("");
+
+    }
+
+    PjRtFuture<Status> PjRtCompileOnlyBuffer::ToLiteral(MutableLiteralBase* literal) {
+      return PjRtFuture<Status>();
+
+    }
+
+    PjRtFuture<Status> PjRtCompileOnlyBuffer::LazyToLiteral(absl::AnyInvocable<absl::StatusOr<MutableLiteralBase*>() &&> generator) {
+      return PjRtFuture<Status>();
+
+    }
+
+    StatusOr<size_t> PjRtCompileOnlyBuffer::GetOnDeviceSizeInBytes() const {
+      return Unimplemented("");
+
+    }
+    PjRtFuture<Status> PjRtCompileOnlyBuffer::CopyRawToHost(void* dst, int64_t offset, int64_t transfer_size) {
+      return PjRtFuture<Status>();
+
+    }
+
+    void PjRtCompileOnlyBuffer::Delete() {
+      return;
+
+    }
+
+    StatusOr<std::unique_ptr<xla::PjRtBuffer::ExternalReference>> PjRtCompileOnlyBuffer::ReleaseDeviceMemoryOwnership(bool wait_for_operations_to_complete) {
+      return Unimplemented("");
+
+    }
+
+    bool PjRtCompileOnlyBuffer::IsDeleted() {
+      return false;
+
+    }
+
+    StatusOr<std::unique_ptr<PjRtBuffer>> PjRtCompileOnlyBuffer::CopyToDevice(PjRtDevice* dst_device) {
+      return Unimplemented("");
+
+    }
+    StatusOr<std::unique_ptr<PjRtBuffer>> PjRtCompileOnlyBuffer::CopyToMemorySpace(PjRtMemorySpace* dst_memory_space) {
+      return Unimplemented("");
+
+    }
+
+    void PjRtCompileOnlyBuffer::CopyToRemoteDevice(PjRtFuture<StatusOr<std::string>> serialized_descriptor, RemoteSendCallback on_done) {
+      return;
+
+    }
+
+    void PjRtCompileOnlyBuffer::CopyToRemoteDeviceScattered(
+      PjRtFuture<StatusOr<std::vector<std::string>>> serialized_descriptors,
+      std::vector<RemoteSendCallback> callbacks,
+      const ScatterDetails& scatter_details) {
+      return;
+
+      }
+
+    PjRtFuture<Status> PjRtCompileOnlyBuffer::GetReadyFuture() {
+      return PjRtFuture<Status>();
+
+    }
+    
+    bool PjRtCompileOnlyBuffer::IsOnCpu() const {
+      return false;
+    }
+
+
+
+  PjRtCompileOnlyDevice::PjRtCompileOnlyDevice(const PjRtDeviceDescription* description)
+      : description_(std::move(description)) {}
+  
+  const PjRtDeviceDescription& PjRtCompileOnlyDevice::description() const  {
+    return *description_;
+  }
+  void PjRtCompileOnlyDevice::SetClient(PjRtClient* client) {
+    client_ = client;
+  }
+
+  PjRtClient* PjRtCompileOnlyDevice::client() const  { return client_; }
+  bool PjRtCompileOnlyDevice::IsAddressable() const  { return false; }
+  int PjRtCompileOnlyDevice::local_hardware_id() const  {
+    return local_hardware_id_typed().value();
+  }
+
+  PjRtLocalDeviceId PjRtCompileOnlyDevice::local_device_id() const  {
+    return PjRtLocalDeviceId(local_hardware_id_typed().value());
+  }
+
+  PjRtLocalHardwareId PjRtCompileOnlyDevice::local_hardware_id_typed() const  {
+    return PjRtLocalHardwareId(-1);
+  }
+
+  std::unique_ptr<ScopedAsyncTrackingEvent> PjRtCompileOnlyDevice::CreateAsyncTrackingEvent(
+      absl::string_view description) const  {
+    return nullptr;
+  }
+  Status PjRtCompileOnlyDevice::TransferToInfeed(const LiteralSlice& literal)  {
+    return Unimplemented("TransferToInfeed is not supported");
+  }
+  Status PjRtCompileOnlyDevice::TransferFromOutfeed(MutableBorrowingLiteral literal)  {
+    return Unimplemented("TransferFromOutfeed is not supported");
+  }
+  absl::Span<PjRtMemorySpace* const> PjRtCompileOnlyDevice::memory_spaces() const  {
+    return {};
+  }
+  StatusOr<PjRtMemorySpace*> PjRtCompileOnlyDevice::default_memory_space() const  {
+    return Unimplemented("default_memory_space is not supported");
+  }
+
+
+
+// class InvalidIfrtCompiler final
+//     : public llvm::RTTIExtends<InvalidIfrtCompiler, ifrt::Compiler> {
+//  public:
+//   StatusOr<std::unique_ptr<ifrt::LoadedExecutable>> Compile(
+//       std::unique_ptr<ifrt::Program> program,
+//       std::unique_ptr<ifrt::CompileOptions> options) override {
+//     return Unimplemented("Compile not implemented.");
+//   }
+
+//   StatusOr<std::unique_ptr<ifrt::LoadedExecutable>> DeserializeLoadedExecutable(
+//       absl::string_view serialized,
+//       std::unique_ptr<ifrt::DeserializeExecutableOptions> options) override {
+//     return Unimplemented("DeserializeLoadedExecutable not implemented.");
+//   }
+
+//   static char ID;  // NOLINT
+// };
+// char InvalidIfrtCompiler::ID = 0;  // NOLINT
+
+ CompileOnlyPjRtClient::CompileOnlyPjRtClient(std::shared_ptr<PjRtTopologyDescription> topology): topology_(std::move(topology)), descriptions_(topology_->DeviceDescriptions()) {
+  descriptions_.resize(4);
+  std::cout << "topology platform name: " << topology_->platform_name() << std::endl;
+  for (auto& description : descriptions_) {
+      owned_devices_.push_back(
+          std::make_unique<PjRtCompileOnlyDevice>(description.get()));
+      owned_devices_.back()->SetClient(this);
+      devices_.push_back(owned_devices_.back().get());
+      // devices_.back()->SetClient(this);
+      // devices_.back()->client()->platform_name() :  devices_.back()->client() invalid memory
+    }
+  }
+  // implement those pure virtual methods:
+
+  int CompileOnlyPjRtClient::device_count() const { return devices().size(); }
+  int CompileOnlyPjRtClient::addressable_device_count() const { return 0; }
+  absl::Span<PjRtDevice* const> CompileOnlyPjRtClient::devices() const { return devices_; }
+  // PIZ: if we don't implement this, this will raise error in GetDefaultDevice()
+  absl::Span<PjRtDevice* const> CompileOnlyPjRtClient::addressable_devices() const {
+    return {};
+  }
+  int CompileOnlyPjRtClient::process_index() const { return 0; } 
+
+  StatusOr<PjRtDevice*> CompileOnlyPjRtClient::LookupDevice(
+        PjRtGlobalDeviceId global_device_id) const {
+          return Unimplemented("LookupDevice not available with compile-only client.");
+        }
+  
+   StatusOr<PjRtDevice*> CompileOnlyPjRtClient::LookupAddressableDevice(
+        PjRtLocalDeviceId local_device_id) const {
+      return Unimplemented(
+          "LookupAddressableDevice not available with compile-only client.");
+    } 
+  
+    absl::Span<PjRtMemorySpace* const> CompileOnlyPjRtClient::memory_spaces() const {
+      return {};
+    }
+
+    PjRtRuntimeType CompileOnlyPjRtClient::runtime_type() const {
+      return PjRtRuntimeType::kTfrt;
+    }
+
+    absl::string_view CompileOnlyPjRtClient::platform_name() const {
+      return topology_->platform_name();
+    }
+    absl::string_view CompileOnlyPjRtClient::platform_version() const {
+      return topology_->platform_version();
+    }
+    PjRtPlatformId CompileOnlyPjRtClient::platform_id() const {
+      return topology_->platform_id();
+    }
+    StatusOr<DeviceAssignment> CompileOnlyPjRtClient::GetDefaultDeviceAssignment(
+      int num_replicas, int num_partitions) const {
+      return Unimplemented(
+          "GetDefaultDeviceAssignment not available with compile-only client.");
+    }
+    StatusOr<Layout> CompileOnlyPjRtClient::GetDefaultLayout(PrimitiveType element_type,
+                                            absl::Span<const int64_t> dims) {
+      return Unimplemented(
+          "GetDefaultLayout not available with compile-only client.");
+    }
+                                        
+    StatusOr<std::unique_ptr<HloCostAnalysis>> CompileOnlyPjRtClient::GetHloCostAnalysis() const {
+       return Unimplemented("");
+    }
+
+    StatusOr<std::unique_ptr<PjRtLoadedExecutable>> CompileOnlyPjRtClient::Compile(
+      const XlaComputation& computation, CompileOptions options) {
+       return Unimplemented("");
+    }
+
+    // StatusOr<std::unique_ptr<PjRtExecutable>> CompileOnlyPjRtClient::CompileUnloaded(
+    //   const XlaComputation& computation, CompileOptions options) {
+    //     return PjRtCompile(options, computation, *topology_);
+    // }
+
+    StatusOr<std::unique_ptr<PjRtLoadedExecutable>> CompileOnlyPjRtClient::Compile(
+      mlir::ModuleOp module, CompileOptions options) {
+       return Unimplemented("");
+
+    }
+
+    StatusOr<std::unique_ptr<PjRtLoadedExecutable>> CompileOnlyPjRtClient::DeserializeExecutable(
+        absl::string_view serialized, std::optional<CompileOptions> options) {
+      return Unimplemented("DeserializeExecutable not implemented.");
+   }
+
+    StatusOr<std::unique_ptr<xla::PjRtBuffer>> CompileOnlyPjRtClient::CreateUninitializedBuffer(
+        const Shape& shape, PjRtDevice* device) {
+      return Unimplemented("CreateUninitializedBuffer not implemented.");
+    }
+
+
+    StatusOr<std::unique_ptr<PjRtClient::AsyncHostToDeviceTransferManager>>
+    CompileOnlyPjRtClient::CreateBuffersForAsyncHostToDevice(absl::Span<const Shape> shapes,
+                                    PjRtMemorySpace* memory_space) {
+                                      return Unimplemented("");
+                                    }
+
+
+    StatusOr<std::unique_ptr<PjRtClient::AsyncHostToDeviceTransferManager>>
+      CompileOnlyPjRtClient::CreateBuffersForAsyncHostToDevice(absl::Span<const Shape> shapes,
+                                    PjRtDevice* device) {
+                                      return Unimplemented("");
+                                    }
+
+
+
+    StatusOr<std::unique_ptr<PjRtBuffer>> CompileOnlyPjRtClient::BufferFromHostBuffer(
+      const void* data, PrimitiveType type, absl::Span<int64_t const> dims,
+      std::optional<absl::Span<int64_t const>> byte_strides,
+      HostBufferSemantics host_buffer_semantics,
+      absl::AnyInvocable<void() &&> on_done_with_host_buffer,
+      PjRtDevice* device) {
+        // return Unimplemented{""};
+        std::vector<Shape> tuple_shape;
+        absl::Span<const bool> dynamic_dimensions;
+        Shape shape(type, dims, dynamic_dimensions,tuple_shape);
+        // compile_device = static_cast<PjRtCompileOnlyDevice*>(device);
+        return std::make_unique<PjRtCompileOnlyBuffer>(shape, static_cast<PjRtCompileOnlyDevice*>(device), nullptr);
+        // return tsl::errors::Unimplemented(
+        // "BufferFromHostBuffer with an optional device layout is not "
+        // "implemented on platform: ",
+        // platform_name());
+      }    
+
+    // StatusOr<std::unique_ptr<PjRtBuffer>> TfrtTpuClient::BufferFromHostBuffer(
+    // const void* data, PrimitiveType type, absl::Span<int64_t const> dims,
+    // std::optional<absl::Span<int64_t const>> byte_strides,
+    // HostBufferSemantics host_buffer_semantics,
+    // absl::AnyInvocable<void() &&> on_done_with_host_buffer,
+    // PjRtMemorySpace* memory_space, const Layout* device_layout) {
+  
+    //   auto* tpu_device = down_cast<TfrtTpuDevice*>(memory_space->devices()[0]);
+    //   Shape device_shape = ShapeUtil::MakeShape(type, dims);
+
+    //   ASSIGN_OR_RETURN(
+    //       std::unique_ptr<TrackedTfrtCpuDeviceBuffer> tracked_device_buffer,
+    //       AbstractTfrtCpuBuffer::BufferFromHostBufferHelper(
+    //           data, type, dims, byte_strides, host_buffer_semantics,
+    //           std::move(on_done_with_host_buffer), device_shape,
+    //           async_work_runner(), &transpose_mu_, (&transpose_cache_)->get()));
+
+    //   return std::unique_ptr<PjRtBuffer>(std::make_unique<TfrtTpuHostBuffer>(
+    //       device_shape, std::move(tracked_device_buffer),
+    //       down_cast<UnpinnedHostMemorySpace*>(*tpu_device->memory_space_by_kind(
+    //           UnpinnedHostMemorySpace::kKind))));
+    // }
+
+
+    StatusOr<std::unique_ptr<PjRtBuffer>> CompileOnlyPjRtClient::BufferFromHostLiteral(
+      const LiteralSlice& literal, PjRtDevice* device) {
+        return Unimplemented("");
+      }
+
+
+    StatusOr<std::unique_ptr<PjRtBuffer>> CompileOnlyPjRtClient::CreateViewOfDeviceBuffer(
+      void* device_ptr, const Shape& shape, PjRtDevice* device,
+      std::function<void()> on_delete_callback,
+      std::optional<std::intptr_t> stream = std::nullopt) {
+        return Unimplemented("");
+      }
+
+    StatusOr<std::vector<std::unique_ptr<PjRtBuffer>>>
+      CompileOnlyPjRtClient::MakeCrossHostReceiveBuffers(absl::Span<const Shape> shapes,
+                              PjRtDevice* device,
+                              PjRtCrossHostRecvNotifier notifier) {
+                                return Unimplemented("");
+                              }
+
+    StatusOr<std::vector<std::unique_ptr<PjRtBuffer>>>
+      CompileOnlyPjRtClient::MakeCrossHostReceiveBuffersForGather(
+        absl::Span<const Shape> shapes, std::vector<GatherDetails> gather_details,
+        PjRtDevice* device, PjRtCrossHostRecvNotifier notifier)  {
+      return Unimplemented("");  
+    }
+    
+    StatusOr<ChannelHandle> CompileOnlyPjRtClient::CreateChannelHandle() {
+      return Unimplemented(""); 
+    }
+
+    StatusOr<ChannelHandle> CompileOnlyPjRtClient::CreateDeviceToHostChannelHandle() {
+      return Unimplemented(""); 
+    }
+
+    StatusOr<ChannelHandle> CompileOnlyPjRtClient::CreateHostToDeviceChannelHandle() {
+      return Unimplemented(""); 
+    }
+    
+    Status CompileOnlyPjRtClient::Defragment() {
+      return Unimplemented(""); 
+    }
+
+
+  // private:
+  //   std::shared_ptr<PjRtTopologyDescription> topology_;
+  //   //  InvalidIfrtCompiler default_compiler_;
+  //   std::vector<std::unique_ptr<const PjRtDeviceDescription>> descriptions_;
+  //   std::vector<std::unique_ptr<PjRtCompileOnlyDevice>> owned_devices_;
+  //   std::vector<PjRtDevice*> devices_; 
+
+}
+}
 
 namespace torch_xla {
 namespace runtime {
@@ -57,6 +430,7 @@ void RegisterPjRtPlugin(std::string name,
 
 std::tuple<std::unique_ptr<xla::PjRtClient>, std::unique_ptr<XlaCoordinator>>
 InitializePjRt(const std::string& device_type) {
+  std::cout << "device_type: " << device_type << std::endl;
   std::unique_ptr<xla::PjRtClient> client;
   std::unique_ptr<XlaCoordinator> coordinator;
 
@@ -124,6 +498,30 @@ InitializePjRt(const std::string& device_type) {
     const PJRT_Api* c_api =
         static_cast<xla::PjRtCApiClient*>(client.get())->pjrt_c_api();
     profiler::RegisterProfilerForPlugin(c_api);
+  } else if (device_type == "AOT") {
+    TF_VLOG(1) << "Initializing AOT client...";
+    // Prefer $TPU_LIBRARY_PATH if set
+    auto tpu_library_path = sys_util::GetEnvString(
+        env::kEnvTpuLibraryPath,
+        sys_util::GetEnvString(env::kEnvInferredTpuLibraryPath,
+        "libtpu.so"));
+    XLA_CHECK_OK(pjrt::LoadPjrtPlugin("tpu", tpu_library_path).status());
+    tsl::Status tpu_status = pjrt::InitializePjrtPlugin(
+        "tpu");  // PIZ: issue here for fake tpu due to LIBTPU_INIT_ARGS
+    XLA_CHECK_OK(tpu_status);
+    // xla::PjRtTopologyDescription topo =
+    std::string topology_name = "v4:2x2x1";
+    absl::flat_hash_map<std::string, xla::PjRtValueType> create_options = {};
+    absl::StatusOr<std::unique_ptr<xla::PjRtTopologyDescription>> topo = xla::GetCApiTopology("tpu", topology_name, create_options);
+    // std::cout << topo->DeviceDescriptions.ToString() << std::endl;
+    XLA_CHECK_OK(topo.status()); 
+    std::shared_ptr<xla::PjRtTopologyDescription> shared_topo = std::move(topo.value());
+    client = std::move(
+      std::make_unique<xla::CompileOnlyPjRtClient>(shared_topo)
+    );
+    std::cout << "piz111" << std::endl;
+    // client = std::move(xla::GetCApiClient("TPU").value());  // PIZ: issue here.
+    // piz: 04/12, we need to make a dummy client to contain the correct replicas and partitions
   } else if (device_type == "TPU_LEGACY") {
     XLA_ERROR() << "TPU_LEGACY client is no longer available.";
   } else if (device_type == "CUDA") {

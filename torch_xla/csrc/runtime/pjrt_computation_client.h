@@ -165,7 +165,8 @@ class PjRtComputationClient : public ComputationClient {
     };
     void Assign(const torch::lazy::BackendData& data) override;
     bool HasValue() const override {
-      return buffer != nullptr && !buffer->IsDeleted();
+      return true; // piz: 
+      // return buffer != nullptr && !buffer->IsDeleted();
     };
 
     bool HasSharding() const override { return false; }
@@ -262,6 +263,20 @@ class PjRtComputationClient : public ComputationClient {
     }
 
     std::unique_ptr<xla::PjRtLoadedExecutable> executable;
+    std::optional<std::vector<xla::OpSharding>> output_shardings_;
+  };
+
+  // piz: added the unloaded
+  struct PjRtUnloadedComputation : public Computation {
+    PjRtUnloadedComputation(xla::XlaComputation computation,
+                    std::vector<std::string> devices,
+                    std::unique_ptr<xla::PjRtExecutable> executable)
+        : Computation(std::move(computation), std::move(devices)),
+          executable(std::move(executable)) {
+      output_shardings_ = this->executable->GetOutputShardings();
+    }
+
+    std::unique_ptr<xla::PjRtExecutable> executable;
     std::optional<std::vector<xla::OpSharding>> output_shardings_;
   };
 

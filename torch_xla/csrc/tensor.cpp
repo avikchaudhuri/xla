@@ -418,7 +418,8 @@ torch::lazy::Value XLATensor::GetIrValueForTensor(
     read_only = true;
   } else {
     TORCH_LAZY_TIMED("IrValueTensorToXlaData");
-    data = TensorToXlaData(tensor, device);
+    data = TensorToXlaData(tensor, device); // piz: enter point
+    std::cout << "we enter here....." << std::endl;
   }
   return CreateTensorNode(std::move(data), read_only);
 }
@@ -546,6 +547,8 @@ void XLATensor::UpdateFromTensor(at::Tensor tensor, bool sync) {
   if (sync) {
     at::Tensor typed_tensor =
         torch::lazy::CopyTensor(tensor, dtype(), /*copy=*/false);
+    
+    std::cout << "first device: " << GetDevice() << std::endl;
     SetIrValue(GetIrValueForTensor(typed_tensor, device),
                /*inplace=*/true);
   } else {
