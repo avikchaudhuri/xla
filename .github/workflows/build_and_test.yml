@@ -111,3 +111,11 @@ jobs:
     # Only run this for HEAD and releases
     if: github.event_name == 'push'
 
+  build-upstream-image:
+    name: "Build upstream Docker image"
+    uses: ./.github/workflows/_build_upstream_image.yml
+    with:
+      ecr-docker-image-base: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/xla_base
+    # if: github.event_name == 'push' && github.event.ref == 'refs/heads/master'
+    secrets:
+      gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
