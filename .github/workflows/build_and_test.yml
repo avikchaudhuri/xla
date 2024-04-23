@@ -20,48 +20,48 @@ concurrency:
 
 jobs:
   # Old CI workflow
-  build:
-    name: "Build PyTorch/XLA (GPU)"
-    uses: ./.github/workflows/_build.yml
-    with:
-      ecr-docker-image-base: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/xla_base
-      gcr-docker-image: gcr.io/tpu-pytorch/xla_base:dev-3.8_cuda_12.1
-      cuda: 1
-    secrets:
-      gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
+  # build:
+  #   name: "Build PyTorch/XLA (GPU)"
+  #   uses: ./.github/workflows/_build.yml
+  #   with:
+  #     ecr-docker-image-base: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/xla_base
+  #     gcr-docker-image: gcr.io/tpu-pytorch/xla_base:dev-3.8_cuda_12.1
+  #     cuda: 1
+  #   secrets:
+  #     gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
 
-  test-cpp-cpu:
-    name: "CPU C++ tests"
-    uses: ./.github/workflows/_test_cpp.yml
-    needs: build
-    with:
-      docker-image: ${{ needs.build.outputs.docker-image }}
-      timeout-minutes: 120
-      collect-coverage: false  # TODO(yeounoh) separate from CPU coverage metrics
-    secrets:
-      gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
+  # test-cpp-cpu:
+  #   name: "CPU C++ tests"
+  #   uses: ./.github/workflows/_test_cpp.yml
+  #   needs: build
+  #   with:
+  #     docker-image: ${{ needs.build.outputs.docker-image }}
+  #     timeout-minutes: 120
+  #     collect-coverage: false  # TODO(yeounoh) separate from CPU coverage metrics
+  #   secrets:
+  #     gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
 
-  test-cpp-cuda:
-    name: "GPU C++ tests"
-    uses: ./.github/workflows/_test_cpp.yml
-    needs: build
-    with:
-      docker-image: ${{ needs.build.outputs.docker-image }}
-      runner: linux.8xlarge.nvidia.gpu
-      timeout-minutes: 300
-      collect-coverage: false  # TODO(yeounoh) separate from CPU coverage metrics
-    secrets:
-      gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
+  # test-cpp-cuda:
+  #   name: "GPU C++ tests"
+  #   uses: ./.github/workflows/_test_cpp.yml
+  #   needs: build
+  #   with:
+  #     docker-image: ${{ needs.build.outputs.docker-image }}
+  #     runner: linux.8xlarge.nvidia.gpu
+  #     timeout-minutes: 300
+  #     collect-coverage: false  # TODO(yeounoh) separate from CPU coverage metrics
+  #   secrets:
+  #     gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
 
-  push-docs:
-    name: "Build & publish docs"
-    if: github.event_name == 'push' && (github.event.ref == 'refs/heads/master' || startsWith(github.event.ref, 'refs/tags/r'))
-    uses: ./.github/workflows/_docs.yml
-    needs: build
-    with:
-      docker-image: ${{ needs.build.outputs.docker-image }}
-    secrets:
-      torchxla-bot-token: ${{ secrets.TORCH_XLA_BOT_TOKEN }}
+  # push-docs:
+  #   name: "Build & publish docs"
+  #   if: github.event_name == 'push' && (github.event.ref == 'refs/heads/master' || startsWith(github.event.ref, 'refs/tags/r'))
+  #   uses: ./.github/workflows/_docs.yml
+  #   needs: build
+  #   with:
+  #     docker-image: ${{ needs.build.outputs.docker-image }}
+  #   secrets:
+  #     torchxla-bot-token: ${{ secrets.TORCH_XLA_BOT_TOKEN }}
 
   # New CI workflow
   build-torch-xla:
