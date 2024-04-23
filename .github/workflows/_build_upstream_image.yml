@@ -11,37 +11,14 @@ on:
         type: string
         description: Runner type for the test
         default: linux.12xlarge
-
-    secrets:
-      gcloud-service-key:
-        required: true
-        description: Secret to access Bazel build cache
-
-    outputs:
-      docker-image:
-        value: ${{ jobs.build.outputs.docker-image }}
-        description: The docker image containing the built PyTorch.
 jobs:
   build:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 240
-    outputs:
-      docker-image: ${{ steps.upload-docker-image.outputs.docker-image }}
     env:
       ECR_DOCKER_IMAGE_BASE: ${{ inputs.ecr-docker-image-base }}
-      SCCACHE_BUCKET: ossci-compiler-cache-circleci-v2
-      GCLOUD_SERVICE_KEY: ${{ secrets.gcloud-service-key }}
       BAZEL_JOBS: 16
     steps:
-      - name: Setup Linux
-        uses: pytorch/test-infra/.github/actions/setup-linux@main
-      - name: Setup SSH (Click me for login details)
-        uses: pytorch/test-infra/.github/actions/setup-ssh@main
-        with:
-          github-secret: ${{ secrets.GITHUB_TOKEN }}
-          instructions: |
-            Build is  done inside the container, to start an interactive session run:
-              docker exec -it $(docker container ps --format '{{.ID}}') bash
       # See https://github.com/actions/checkout/issues/1014#issuecomment-1906802802
       - name: Cleanup
         run: chmod +w -R ${GITHUB_WORKSPACE}; rm -rf ${GITHUB_WORKSPACE}/*;
@@ -62,7 +39,4 @@ jobs:
             # Note: disable the following line while testing a new image, so we do not
             # push to the upstream.
             # docker push "${ECR_DOCKER_IMAGE_BASE}:v1.2-lite" >/dev/null
-      - name: Teardown Linux
-        uses: pytorch/test-infra/.github/actions/teardown-linux@main
-        if: always()
 

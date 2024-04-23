@@ -117,5 +117,3 @@ jobs:
     with:
       ecr-docker-image-base: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/xla_base
     # if: github.event_name == 'push' && github.event.ref == 'refs/heads/master'
-    secrets:
-      gcloud-service-key: ${{ secrets.GCLOUD_SERVICE_KEY }}
