@@ -97,7 +97,6 @@ jobs:
     needs: [build-torch-xla, build-cuda-plugin]
     with:
       dev-image: us-central1-docker.pkg.dev/tpu-pytorch-releases/docker/development:3.10_cuda_12.1
-      runner: linux.8xlarge.nvidia.gpu
       timeout-minutes: 300
       collect-coverage: false
       install-cuda-plugin: true
@@ -115,5 +114,6 @@ jobs:
     name: "Build upstream Docker image"
     uses: ./.github/workflows/_build_upstream_image.yml
     with:
+      runner: linux.2xlarge
       ecr-docker-image-base: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/xla_base
     # if: github.event_name == 'push' && github.event.ref == 'refs/heads/master'
