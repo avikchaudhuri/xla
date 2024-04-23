@@ -23,12 +23,12 @@ jobs:
       - name: Cleanup
         run: chmod +w -R ${GITHUB_WORKSPACE}
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       - name: Download docker image from GCR
         shell: bash
         # TODO: Actually build the image here
         run: |
-          docker build -t "${ECR_DOCKER_IMAGE_BASE}:v1.2-lite .github/upstream/Dockerfile
+          docker build -t "${ECR_DOCKER_IMAGE_BASE}:v1.2-lite" .github/upstream/Dockerfile
       - name: Stage image to ECR
         shell: bash
         run: |
